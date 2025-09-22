@@ -24,19 +24,6 @@ def extract_domain(url: str) -> str:
     except:
         return url
 
-def build_dork_query(site: str, query: str, additional_operators: str = "") -> str:
-    """Build a complete dork query."""
-    domain = extract_domain(site)
-    dork = f"site:{domain}"
-    
-    if query.strip():
-        dork += f" {query.strip()}"
-    
-    if additional_operators.strip():
-        dork += f" {additional_operators.strip()}"
-    
-    return dork
-
 def parse_search_results(html_content: str, search_engine: str) -> List[Dict[str, str]]:
     """Parse search results from HTML content."""
     from bs4 import BeautifulSoup
@@ -48,7 +35,7 @@ def parse_search_results(html_content: str, search_engine: str) -> List[Dict[str
         if search_engine == "google":
             # Google search result selectors
             result_divs = soup.find_all('div', class_='g')
-            for div in result_divs[:20]:  # Limit to first 20 results
+            for div in result_divs[:20]:
                 title_elem = div.find('h3')
                 link_elem = div.find('a')
                 snippet_elem = div.find('span', class_='aCOpRe') or div.find('div', class_='VwiC3b')
@@ -91,6 +78,96 @@ def parse_search_results(html_content: str, search_engine: str) -> List[Dict[str
             for div in result_divs[:20]:
                 title_elem = div.find('h2').find('a') if div.find('h2') else None
                 snippet_elem = div.find('div', class_='text-container')
+                
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    link = title_elem.get('href', '')
+                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                    
+                    results.append({
+                        'title': title,
+                        'url': link,
+                        'snippet': snippet
+                    })
+        
+        elif search_engine == "bing":
+            # Bing result selectors
+            result_divs = soup.find_all('li', class_='b_algo')
+            for div in result_divs[:20]:
+                title_elem = div.find('h2').find('a') if div.find('h2') else None
+                snippet_elem = div.find('p') or div.find('div', class_='b_caption')
+                
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    link = title_elem.get('href', '')
+                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                    
+                    results.append({
+                        'title': title,
+                        'url': link,
+                        'snippet': snippet
+                    })
+        
+        elif search_engine == "baidu":
+            # Baidu result selectors
+            result_divs = soup.find_all('div', class_='result')
+            for div in result_divs[:20]:
+                title_elem = div.find('h3').find('a') if div.find('h3') else None
+                snippet_elem = div.find('div', class_='c-abstract')
+                
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    link = title_elem.get('href', '')
+                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                    
+                    results.append({
+                        'title': title,
+                        'url': link,
+                        'snippet': snippet
+                    })
+        
+        elif search_engine == "yahoo":
+            # Yahoo result selectors
+            result_divs = soup.find_all('div', class_='Sr')
+            for div in result_divs[:20]:
+                title_elem = div.find('h3').find('a') if div.find('h3') else None
+                snippet_elem = div.find('p', class_='fz-ms')
+                
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    link = title_elem.get('href', '')
+                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                    
+                    results.append({
+                        'title': title,
+                        'url': link,
+                        'snippet': snippet
+                    })
+        
+        elif search_engine == "startpage":
+            # StartPage result selectors
+            result_divs = soup.find_all('div', class_='w-gl__result')
+            for div in result_divs[:20]:
+                title_elem = div.find('h3').find('a') if div.find('h3') else None
+                snippet_elem = div.find('p', class_='w-gl__description')
+                
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    link = title_elem.get('href', '')
+                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                    
+                    results.append({
+                        'title': title,
+                        'url': link,
+                        'snippet': snippet
+                    })
+        
+        elif search_engine == "searx":
+            # Searx result selectors
+            result_divs = soup.find_all('div', class_='result')
+            for div in result_divs[:20]:
+                title_elem = div.find('h3').find('a') if div.find('h3') else None
+                snippet_elem = div.find('p', class_='content')
                 
                 if title_elem:
                     title = title_elem.get_text(strip=True)
