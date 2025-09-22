@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
 from search_engines import SearchEngineManager
-from utils import validate_url, clean_url, format_results_for_display
+from utils import format_results_for_display
 import json
 from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="Search Engine Site Dorker",
+    page_title="Universal Search Engine Dorker",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -47,6 +47,12 @@ st.markdown("""
         padding: 0.5rem 2rem;
         font-weight: bold;
     }
+    .engine-stats {
+        background: #e3f2fd;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -54,8 +60,8 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>🔍 Search Engine Site Dorker</h1>
-        <p>Advanced site-specific search across Google, DuckDuckGo, and Yandex</p>
+        <h1>🔍 Universal Search Engine Dorker</h1>
+        <p>Advanced dorking across 8 major search engines</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -89,10 +95,11 @@ def main():
         
         # Search engine selection
         st.subheader("🔍 Search Engines")
+        all_engines = ["Google", "DuckDuckGo", "Yandex", "Bing", "Baidu", "Yahoo", "StartPage", "Searx"]
         search_engines = st.multiselect(
             "Select Search Engines",
-            ["Google", "DuckDuckGo", "Yandex"],
-            default=["Google", "DuckDuckGo"]
+            all_engines,
+            default=["Google", "DuckDuckGo", "Bing"]
         )
         
         # Advanced options
@@ -121,25 +128,12 @@ def main():
     with col1:
         st.markdown('<div class="search-box">', unsafe_allow_html=True)
         
-        # Target site input
-        target_site = st.text_input(
-            "🎯 Target Site",
-            placeholder="example.com or https://example.com",
-            help="Enter the website you want to search within"
-        )
-        
         # Search query input
-        search_query = st.text_input(
-            "🔍 Search Query",
-            placeholder="Enter your search terms",
-            help="What you're looking for on the target site"
-        )
-        
-        # Additional dork operators
-        additional_operators = st.text_input(
-            "⚡ Additional Operators",
-            placeholder='filetype:pdf OR intitle:"admin" OR inurl:"/admin"',
-            help="Advanced Google dork operators (filetype:, intitle:, inurl:, etc.)"
+        search_query = st.text_area(
+            "🔍 Search Query / Dork",
+            placeholder='Enter your search query or dork (e.g., site:example.com filetype:pdf, intitle:"admin login", inurl:"/wp-admin")',
+            help="Enter any search query or Google dork operators",
+            height=100
         )
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -147,6 +141,7 @@ def main():
     with col2:
         st.markdown("### 📚 Common Dork Operators")
         st.markdown("""
+        - `site:example.com` - Search specific site
         - `filetype:pdf` - Find PDF files
         - `intitle:"admin"` - Pages with "admin" in title
         - `inurl:"/login"` - URLs containing "/login"
@@ -154,7 +149,35 @@ def main():
         - `cache:example.com` - Cached version
         - `"password"` - Exact phrase search
         - `-word` - Exclude word from results
+        - `OR` - Search for either term
+        - `*` - Wildcard operator
         """)
+    
+    # Predefined dork templates
+    st.markdown("### 🎯 Quick Dork Templates")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("🔐 Login Pages"):
+            st.session_state.template_query = 'intitle:"login" OR inurl:"/login" OR inurl:"/admin"'
+    
+    with col2:
+        if st.button("📁 File Discovery"):
+            st.session_state.template_query = 'filetype:pdf OR filetype:doc OR filetype:xls'
+    
+    with col3:
+        if st.button("🗄️ Database Files"):
+            st.session_state.template_query = 'filetype:sql OR filetype:db OR ext:mdb'
+    
+    with col4:
+        if st.button("⚙️ Config Files"):
+            st.session_state.template_query = 'filetype:conf OR filetype:config OR filetype:ini'
+    
+    # Apply template if selected
+    if 'template_query' in st.session_state:
+        search_query = st.session_state.template_query
+        del st.session_state.template_query
+        st.rerun()
     
     # Search buttons
     col1, col2, col3 = st.columns(3)
@@ -174,62 +197,54 @@ def main():
         st.rerun()
     
     # Perform search
-    if (search_selected or search_all) and target_site:
-        if not validate_url(clean_url(target_site)):
-            st.error("❌ Please enter a valid website URL")
+    if (search_selected or search_all) and search_query:
+        # Initialize search manager
+        manager = SearchEngineManager(proxy_url if use_proxy and proxy_url else None)
+        
+        # Determine which engines to search
+        engines_to_search = search_engines if search_selected else all_engines
+        
+        if not engines_to_search:
+            st.error("❌ Please select at least one search engine")
         else:
-            # Clean the target site
-            clean_site = clean_url(target_site)
+            # Show progress
+            progress_bar = st.progress(0)
+            status_text = st.empty()
             
-            # Initialize search manager
-            manager = SearchEngineManager(proxy_url if use_proxy and proxy_url else None)
+            results = {}
+            total_engines = len(engines_to_search)
             
-            # Determine which engines to search
-            engines_to_search = search_engines if search_selected else ["Google", "DuckDuckGo", "Yandex"]
-            
-            if not engines_to_search:
-                st.error("❌ Please select at least one search engine")
-            else:
-                # Show progress
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+            for i, engine_name in enumerate(engines_to_search):
+                status_text.text(f"Searching {engine_name}...")
+                progress_bar.progress((i + 1) / total_engines)
                 
-                results = {}
-                total_engines = len(engines_to_search)
-                
-                for i, engine_name in enumerate(engines_to_search):
-                    status_text.text(f"Searching {engine_name}...")
-                    progress_bar.progress((i + 1) / total_engines)
-                    
-                    try:
-                        engine = manager.get_engine(engine_name)
-                        if engine:
-                            engine_results = engine.search(clean_site, search_query, additional_operators)
-                            results[engine_name] = engine_results
-                        else:
-                            results[engine_name] = []
-                    except Exception as e:
-                        st.error(f"Error searching {engine_name}: {str(e)}")
+                try:
+                    engine = manager.get_engine(engine_name)
+                    if engine:
+                        engine_results = engine.search(search_query)
+                        results[engine_name] = engine_results
+                    else:
                         results[engine_name] = []
-                
-                # Store results in session state
-                st.session_state.search_results = results
-                
-                # Add to search history
-                search_entry = {
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'site': clean_site,
-                    'query': search_query,
-                    'operators': additional_operators,
-                    'engines': engines_to_search
-                }
-                st.session_state.search_history.append(search_entry)
-                
-                # Clear progress indicators
-                progress_bar.empty()
-                status_text.empty()
-                
-                st.success(f"✅ Search completed across {len(engines_to_search)} engines!")
+                except Exception as e:
+                    st.error(f"Error searching {engine_name}: {str(e)}")
+                    results[engine_name] = []
+            
+            # Store results in session state
+            st.session_state.search_results = results
+            
+            # Add to search history
+            search_entry = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'query': search_query,
+                'engines': engines_to_search
+            }
+            st.session_state.search_history.append(search_entry)
+            
+            # Clear progress indicators
+            progress_bar.empty()
+            status_text.empty()
+            
+            st.success(f"✅ Search completed across {len(engines_to_search)} engines!")
     
     # Display results
     if st.session_state.search_results:
@@ -239,6 +254,26 @@ def main():
         # Results summary
         total_results = sum(len(results) for results in st.session_state.search_results.values())
         st.info(f"Found {total_results} total results across {len(st.session_state.search_results)} engines")
+        
+        # Results statistics
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown('<div class="engine-stats">', unsafe_allow_html=True)
+            st.metric("Total Results", total_results)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="engine-stats">', unsafe_allow_html=True)
+            successful_engines = sum(1 for results in st.session_state.search_results.values() if results)
+            st.metric("Successful Engines", f"{successful_engines}/{len(st.session_state.search_results)}")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown('<div class="engine-stats">', unsafe_allow_html=True)
+            avg_results = total_results / len(st.session_state.search_results) if st.session_state.search_results else 0
+            st.metric("Avg Results/Engine", f"{avg_results:.1f}")
+            st.markdown('</div>', unsafe_allow_html=True)
         
         # Display results by engine
         for engine_name, results in st.session_state.search_results.items():
@@ -261,7 +296,7 @@ def main():
         with st.expander("📚 Search History"):
             for entry in reversed(st.session_state.search_history[-10:]):  # Show last 10 searches
                 st.markdown(f"""
-                **{entry['timestamp']}** - Site: `{entry['site']}` - Query: `{entry['query']}` - Engines: {', '.join(entry['engines'])}
+                **{entry['timestamp']}** - Query: `{entry['query'][:100]}{'...' if len(entry['query']) > 100 else ''}` - Engines: {', '.join(entry['engines'])}
                 """)
 
 if __name__ == "__main__":
