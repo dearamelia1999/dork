@@ -1,0 +1,6 @@
+streamlit
+requests
+beautifulsoup4
+urllib3
+lxml
+user-agent
