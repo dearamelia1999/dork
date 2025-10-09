@@ -1,6 +1,2 @@
-streamlit
-requests
-beautifulsoup4
-urllib3
-lxml
-user-agent
+streamlit>=1.28.0
+pandas>=1.5.0
